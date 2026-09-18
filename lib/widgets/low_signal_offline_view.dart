@@ -1,9 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../screens/downloaded_route_viewer_screen.dart';
+import '../screens/sos_screen.dart';
 import '../services/offline_cache_service.dart';
 import '../theme/app_theme.dart';
-import '../screens/sos_screen.dart';
 
 class LowSignalOfflineView extends StatefulWidget {
   final VoidCallback? onDisableMode;
@@ -20,6 +22,7 @@ class LowSignalOfflineView extends StatefulWidget {
 class _LowSignalOfflineViewState extends State<LowSignalOfflineView> {
   OfflineCachedRoute? _route;
   List<OfflineHelpPoint> _helpPoints = [];
+  Uint8List? _mapSnapshotBytes;
   bool _isLoading = true;
   bool _isStepsExpanded = true;
   String? _lastCheckInText;
@@ -50,6 +53,13 @@ class _LowSignalOfflineViewState extends State<LowSignalOfflineView> {
         }
       }
       _isLoading = false;
+    });
+
+    // Load static map snapshot asynchronously
+    OfflineCacheService.getMapSnapshotBytes(route).then((bytes) {
+      if (mounted) {
+        setState(() => _mapSnapshotBytes = bytes);
+      }
     });
   }
 
@@ -281,6 +291,99 @@ class _LowSignalOfflineViewState extends State<LowSignalOfflineView> {
           ),
         ),
 
+        // View Downloaded Route Option Card
+        if (route != null)
+          Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(
+              color: AppTheme.lowSignalCard,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.lowSignalYellow, width: 1.5),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DownloadedRouteViewerScreen(
+                        route: route,
+                        helpPoints: _helpPoints,
+                        mapSnapshotBytes: _mapSnapshotBytes,
+                      ),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.lowSignalYellow.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppTheme.lowSignalYellow, width: 1.2),
+                        ),
+                        child: const Icon(Icons.map_rounded, color: AppTheme.lowSignalYellow, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'VIEW DOWNLOADED ROUTE',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.lowSignalYellow,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.lowSignalGreen.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    route.formattedStorageSize,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.lowSignalGreen,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${route.origin} → ${route.destination}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, color: AppTheme.lowSignalYellow, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
         // Cached Route Directions Card
         if (route != null)
           Container(
@@ -290,9 +393,72 @@ class _LowSignalOfflineViewState extends State<LowSignalOfflineView> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppTheme.lowSignalBorder, width: 1.5),
             ),
+            clipBehavior: Clip.antiAlias,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Static Map Snapshot Image Banner
+                if (_mapSnapshotBytes != null && _mapSnapshotBytes!.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => DownloadedRouteViewerScreen(
+                            route: route,
+                            helpPoints: _helpPoints,
+                            mapSnapshotBytes: _mapSnapshotBytes,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      height: 175,
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF13131C),
+                        border: Border(
+                          bottom: BorderSide(color: AppTheme.lowSignalBorder, width: 1.5),
+                        ),
+                      ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.memory(
+                            _mapSnapshotBytes!,
+                            fit: BoxFit.cover,
+                          ),
+                          Positioned(
+                            bottom: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.8),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.white24),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Full View',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                 // Card Header
                 Padding(
                   padding: const EdgeInsets.all(14.0),

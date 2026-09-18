@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart' as ll;
@@ -32,6 +35,9 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
   final RoutingService _routingService = RoutingService();
   final PlacesService _placesService = PlacesService();
   final MapController _mapController = MapController();
+  final GlobalKey _mapRepaintBoundaryKey = GlobalKey();
+  final Map<String, String> _downloadedRouteSizes = {};
+  bool _isDownloading = false;
 
   List<ScoredRoute> _routes = [];
   List<SafetyPOI> _safetyPOIs = [];
@@ -92,13 +98,13 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
     });
   }
 
-  void _persistRouteToOffline(ScoredRoute route) {
+  Future<int> _persistRouteToOffline(ScoredRoute route, {Uint8List? mapBytes}) async {
     final cachedRoute = OfflineCachedRoute(
       origin: widget.from.name,
       destination: widget.to.name,
       routeTitle: route.title,
       durationText: '${route.durationMinutes} min',
-      distanceText: '${route.distanceKm} km',
+      distanceText: '${route.distanceKm.toStringAsFixed(1)} km',
       fitScore: route.fitScore,
       contextTag: route.contextTag,
       steps: [
@@ -115,15 +121,21 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
           safetyNote: route.contextTag,
         ),
         OfflineRouteStep(
+          instruction: 'Pass key transit corridor on ${route.viaRoad}',
+          distanceText: '${(route.distanceKm * 0.15).toStringAsFixed(1)} km',
+          iconType: 'transit',
+          safetyNote: 'Monitored area with frequent bus and transit stops',
+        ),
+        OfflineRouteStep(
           instruction: 'Arrive at destination: ${widget.to.name}',
-          distanceText: '${(route.distanceKm * 0.25).toStringAsFixed(1)} km',
+          distanceText: '${(route.distanceKm * 0.1).toStringAsFixed(1)} km',
           iconType: 'arrive',
           safetyNote: 'Designated brightly lit arrival zone',
         ),
       ],
       savedAt: DateTime.now(),
     );
-    OfflineCacheService.saveRouteForOffline(cachedRoute);
+    final totalSize = await OfflineCacheService.saveRouteForOffline(cachedRoute, mapImageBytes: mapBytes);
 
     if (_safetyPOIs.isNotEmpty) {
       final cachedPois = _safetyPOIs.map((p) => OfflineHelpPoint(
@@ -133,8 +145,9 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
         distance: 'Along Route Corridor',
         phone: p.category == 'police' ? '+91-11-2669-1861' : p.category == 'hospital' ? '102' : '112',
       )).toList();
-      OfflineCacheService.saveHelpPoints(cachedPois);
+      await OfflineCacheService.saveHelpPoints(cachedPois);
     }
+    return totalSize;
   }
 
   void _fitMapToRoute() {
@@ -178,23 +191,60 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
 
   final Set<String> _downloadedRouteIds = {};
 
-  void _downloadForOffline(ScoredRoute route) {
+  Future<void> _downloadForOffline(ScoredRoute route) async {
+    if (_isDownloading) return;
+    setState(() => _isDownloading = true);
+
+    Uint8List? mapBytes;
+    try {
+      final boundary = _mapRepaintBoundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary != null) {
+        final image = await boundary.toImage(pixelRatio: 2.0);
+        final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+        if (byteData != null) {
+          mapBytes = byteData.buffer.asUint8List();
+        }
+      }
+    } catch (_) {}
+
+    final totalBytes = await _persistRouteToOffline(route, mapBytes: mapBytes);
+    final sizeFormatted = '${(totalBytes / 1024).round()} KB';
+
+    if (!mounted) return;
     setState(() {
       _downloadedRouteIds.add(route.id);
+      _downloadedRouteSizes[route.id] = sizeFormatted;
+      _isDownloading = false;
     });
-    _persistRouteToOffline(route);
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
+            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 22),
+            const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                '${route.title} saved for offline use!',
-                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Route saved for offline use ✓',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    '${route.title} • Map snapshot & directions (~$sizeFormatted)',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -202,7 +252,7 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
         backgroundColor: const Color(0xFF00C2A8),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -438,9 +488,11 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
       orElse: () => _routes.first,
     );
 
-    return Container(
-      height: 250,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+    return RepaintBoundary(
+      key: _mapRepaintBoundaryKey,
+      child: Container(
+        height: 250,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
@@ -559,8 +611,9 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSafetyPoiFilterBar() {
     final policeCount = _safetyPOIs.where((p) => p.category == 'police').length;
@@ -700,8 +753,11 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
                   Builder(
                     builder: (context) {
                       final isDownloaded = _downloadedRouteIds.contains(route.id);
+                      final sizeStr = _downloadedRouteSizes[route.id] ?? '~44 KB';
                       return Tooltip(
-                        message: isDownloaded ? 'Saved for Offline Use' : 'Download for Offline Use',
+                        message: isDownloaded
+                            ? 'Route saved for offline use ✓ ($sizeStr)'
+                            : 'Download for Offline Use',
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: () => _downloadForOffline(route),
@@ -715,26 +771,27 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
                                   ? const Color(0xFF00C2A8).withValues(alpha: 0.15)
                                   : const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(8),
+                              border: isDownloaded
+                                  ? Border.all(color: const Color(0xFF00A892), width: 1)
+                                  : null,
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
                                   isDownloaded ? Icons.check_circle_rounded : Icons.download_rounded,
-                                  size: 17,
+                                  size: 16,
                                   color: isDownloaded ? const Color(0xFF00A892) : const Color(0xFF475569),
                                 ),
-                                if (isDownloaded) ...[
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Saved',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF00A892),
-                                    ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isDownloaded ? 'Saved ($sizeStr)' : 'Offline',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDownloaded ? const Color(0xFF00A892) : const Color(0xFF475569),
                                   ),
-                                ],
+                                ),
                               ],
                             ),
                           ),

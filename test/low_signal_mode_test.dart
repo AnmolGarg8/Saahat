@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saahat_app/main.dart';
@@ -136,6 +137,22 @@ void main() {
       // Banner is removed
       expect(find.text('LOW SIGNAL & BATTERY MODE: ON'), findsNothing);
       expect(LowSignalController.instance.isLowSignalMode, false);
+    });
+  });
+
+  group('Offline Route Download & Viewer Tests', () {
+    test('saveRouteForOffline stores snapshot and computes storage size', () async {
+      final route = OfflineCacheService.defaultFallbackRoute;
+      final dummyMapBytes = Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+
+      final totalSize = await OfflineCacheService.saveRouteForOffline(route, mapImageBytes: dummyMapBytes);
+      expect(totalSize, greaterThan(0));
+
+      final cached = await OfflineCacheService.getLastCachedRoute();
+      expect(cached.origin, route.origin);
+      expect(cached.destination, route.destination);
+      expect(cached.mapImageBase64, isNotNull);
+      expect(cached.formattedStorageSize, isNotEmpty);
     });
   });
 }
