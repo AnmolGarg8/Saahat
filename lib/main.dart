@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
+import 'theme/app_theme.dart';
+import 'screens/main_navigation_shell.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const SaahatApp());
 }
 
@@ -13,14 +15,8 @@ class SaahatApp extends StatelessWidget {
     return MaterialApp(
       title: 'Saahat',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6C2BD9),
-          primary: const Color(0xFF6C2BD9),
-        ),
-        useMaterial3: true,
-      ),
-      home: const HomeScreen(),
+      theme: AppTheme.lightTheme,
+      home: const MainNavigationShell(),
     );
   }
 }
