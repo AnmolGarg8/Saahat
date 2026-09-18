@@ -8,7 +8,7 @@ class PlacesService {
 
   PlacesService({http.Client? client}) : _client = client ?? http.Client();
 
-  /// Fetches live autocomplete suggestions using Google Places Autocomplete API.
+  /// Fetches live autocomplete suggestions using Geoapify Autocomplete API.
   /// Matches small/local places, streets, establishments, and landmarks.
   Future<List<PlaceSuggestion>> getAutocomplete(String query) async {
     if (query.trim().isEmpty) {
@@ -21,20 +21,19 @@ class PlacesService {
 
     try {
       final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/place/autocomplete/json'
-        '?input=${Uri.encodeComponent(query)}'
-        '&key=${ApiConfig.googleMapsApiKey}'
-        '&language=en',
+        'https://api.geoapify.com/v1/geocode/autocomplete'
+        '?text=${Uri.encodeComponent(query)}'
+        '&apiKey=${ApiConfig.autocompleteApiKey}'
+        '&limit=8',
       );
 
-      final response = await _client.get(url);
+      final response = await _client.get(url).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final status = data['status'] as String?;
-        if (status == 'OK' || status == 'ZERO_RESULTS') {
-          final predictions = (data['predictions'] as List<dynamic>? ?? []);
-          return predictions
-              .map((p) => PlaceSuggestion.fromJson(p as Map<String, dynamic>))
+        final features = data['features'] as List<dynamic>? ?? [];
+        if (features.isNotEmpty) {
+          return features
+              .map((f) => PlaceSuggestion.fromGeoapify(f as Map<String, dynamic>))
               .toList();
         }
       }
@@ -44,45 +43,109 @@ class PlacesService {
     }
   }
 
-  /// Fetches place geometry (latitude and longitude) from Google Place Details API.
+  /// Fetches place geometry (latitude and longitude) from PlaceSuggestion or Geoapify Place Details / Geocode API.
   Future<PlaceLocation?> getPlaceDetails(PlaceSuggestion suggestion) async {
+    // If coordinates were already supplied directly by Geoapify Autocomplete
+    if (suggestion.latitude != null && suggestion.longitude != null) {
+      return PlaceLocation(
+        name: suggestion.primaryText,
+        latitude: suggestion.latitude!,
+        longitude: suggestion.longitude!,
+        placeId: suggestion.placeId,
+        secondaryText: suggestion.secondaryText,
+      );
+    }
+
     if (!ApiConfig.hasValidKey) {
       return _getFallbackCoordinates(suggestion);
     }
 
     try {
-      final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/place/details/json'
-        '?place_id=${suggestion.placeId}'
-        '&fields=name,geometry,formatted_address'
-        '&key=${ApiConfig.googleMapsApiKey}',
+      if (suggestion.placeId.isNotEmpty) {
+        final url = Uri.parse(
+          'https://api.geoapify.com/v2/place-details'
+          '?id=${Uri.encodeComponent(suggestion.placeId)}'
+          '&apiKey=${ApiConfig.placeDetailsApiKey}',
+        );
+
+        final response = await _client.get(url).timeout(const Duration(seconds: 5));
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final features = data['features'] as List<dynamic>?;
+          if (features != null && features.isNotEmpty) {
+            final geom = features.first['geometry'] as Map<String, dynamic>?;
+            final coords = geom?['coordinates'] as List<dynamic>?;
+            if (coords != null && coords.length >= 2) {
+              return PlaceLocation(
+                name: suggestion.primaryText,
+                latitude: (coords[1] as num).toDouble(),
+                longitude: (coords[0] as num).toDouble(),
+                placeId: suggestion.placeId,
+                secondaryText: suggestion.secondaryText,
+              );
+            }
+          }
+        }
+      }
+
+      // Fallback to Geocoding Search API
+      final geocodeUrl = Uri.parse(
+        'https://api.geoapify.com/v1/geocode/search'
+        '?text=${Uri.encodeComponent(suggestion.fullDescription)}'
+        '&apiKey=${ApiConfig.geocodingApiKey}'
+        '&limit=1',
       );
-
-      final response = await _client.get(url);
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        if (data['status'] == 'OK') {
-          final result = data['result'] as Map<String, dynamic>;
-          final geometry = result['geometry'] as Map<String, dynamic>?;
-          final location = geometry?['location'] as Map<String, dynamic>?;
-
-          if (location != null) {
-            final lat = (location['lat'] as num).toDouble();
-            final lng = (location['lng'] as num).toDouble();
+      final geoResponse = await _client.get(geocodeUrl).timeout(const Duration(seconds: 5));
+      if (geoResponse.statusCode == 200) {
+        final data = jsonDecode(geoResponse.body) as Map<String, dynamic>;
+        final features = data['features'] as List<dynamic>?;
+        if (features != null && features.isNotEmpty) {
+          final props = features.first['properties'] as Map<String, dynamic>?;
+          final lat = (props?['lat'] as num?)?.toDouble();
+          final lon = (props?['lon'] as num?)?.toDouble();
+          if (lat != null && lon != null) {
             return PlaceLocation(
               name: suggestion.primaryText,
               latitude: lat,
-              longitude: lng,
+              longitude: lon,
               placeId: suggestion.placeId,
               secondaryText: suggestion.secondaryText,
             );
           }
         }
       }
+
       return _getFallbackCoordinates(suggestion);
     } catch (_) {
       return _getFallbackCoordinates(suggestion);
     }
+  }
+
+  /// Searches for points of interest using Geoapify Places API.
+  Future<List<Map<String, dynamic>>> searchNearbyPlaces({
+    required double lat,
+    required double lon,
+    String categories = 'commercial,catering,entertainment,public_transport',
+    int radiusMeters = 3000,
+  }) async {
+    try {
+      final url = Uri.parse(
+        'https://api.geoapify.com/v2/places'
+        '?categories=${Uri.encodeComponent(categories)}'
+        '&filter=circle:$lon,$lat,$radiusMeters'
+        '&bias=proximity:$lon,$lat'
+        '&limit=10'
+        '&apiKey=${ApiConfig.placesApiKey}',
+      );
+      final res = await _client.get(url).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        return (data['features'] as List<dynamic>? ?? [])
+            .map((f) => f as Map<String, dynamic>)
+            .toList();
+      }
+    } catch (_) {}
+    return [];
   }
 
   List<PlaceSuggestion> _getFallbackSuggestions(String query) {

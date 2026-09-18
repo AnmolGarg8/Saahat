@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import '../config/api_config.dart';
 import '../models/place_location.dart';
 import '../services/location_service.dart';
@@ -37,10 +38,9 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
   bool _isLeavingNow = true;
   TimeOfDay? _departureTime;
 
-  GoogleMapController? _mapController;
-  final Set<Marker> _markers = {};
+  final MapController _mapController = MapController();
 
-  static const LatLng _initialCenter = LatLng(28.6139, 77.2090); // Delhi NCR default center
+  static const ll.LatLng _initialCenter = ll.LatLng(28.6139, 77.2090); // Delhi NCR default center
 
   @override
   void initState() {
@@ -72,7 +72,7 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
     _toController.dispose();
     _fromFocusNode.dispose();
     _toFocusNode.dispose();
-    _mapController?.dispose();
+    _mapController.dispose();
     super.dispose();
   }
 
@@ -154,18 +154,14 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
         _updateMapMarkers();
       });
 
-      _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: LatLng(loc.latitude, loc.longitude),
-            zoom: 14.5,
-          ),
-        ),
+      _mapController.move(
+        ll.LatLng(loc.latitude, loc.longitude),
+        14.5,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Using Current Location (${loc.latitude.toStringAsFixed(4)}, ${loc.longitude.toStringAsFixed(4)})'),
+          content: Text('Using Current Location: ${loc.name}'),
           backgroundColor: AppTheme.primaryPurple,
           behavior: SnackBarBehavior.floating,
         ),
@@ -185,71 +181,39 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
   }
 
   void _updateMapMarkers() {
-    final updated = <Marker>{};
-
-    if (_fromLocation != null) {
-      updated.add(
-        Marker(
-          markerId: const MarkerId('from_pin'),
-          position: LatLng(_fromLocation!.latitude, _fromLocation!.longitude),
-          infoWindow: InfoWindow(title: 'From: ${_fromLocation!.name}'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
-        ),
-      );
-    }
-
-    if (_toLocation != null) {
-      updated.add(
-        Marker(
-          markerId: const MarkerId('to_pin'),
-          position: LatLng(_toLocation!.latitude, _toLocation!.longitude),
-          infoWindow: InfoWindow(title: 'To: ${_toLocation!.name}'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
-        ),
-      );
-    }
-
-    setState(() {
-      _markers.clear();
-      _markers.addAll(updated);
-    });
+    setState(() {});
 
     if (_fromLocation != null && _toLocation != null) {
       _fitMapToPins(_fromLocation!, _toLocation!);
     } else if (_fromLocation != null) {
-      _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: LatLng(_fromLocation!.latitude, _fromLocation!.longitude),
-            zoom: 13.5,
-          ),
-        ),
+      _mapController.move(
+        ll.LatLng(_fromLocation!.latitude, _fromLocation!.longitude),
+        13.5,
       );
     } else if (_toLocation != null) {
-      _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: LatLng(_toLocation!.latitude, _toLocation!.longitude),
-            zoom: 13.5,
-          ),
-        ),
+      _mapController.move(
+        ll.LatLng(_toLocation!.latitude, _toLocation!.longitude),
+        13.5,
       );
     }
   }
 
   void _fitMapToPins(PlaceLocation from, PlaceLocation to) {
-    final southWest = LatLng(
+    final southWest = ll.LatLng(
       from.latitude < to.latitude ? from.latitude : to.latitude,
       from.longitude < to.longitude ? from.longitude : to.longitude,
     );
-    final northEast = LatLng(
+    final northEast = ll.LatLng(
       from.latitude > to.latitude ? from.latitude : to.latitude,
       from.longitude > to.longitude ? from.longitude : to.longitude,
     );
 
-    final bounds = LatLngBounds(southwest: southWest, northeast: northEast);
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngBounds(bounds, 70),
+    final bounds = LatLngBounds(southWest, northEast);
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: bounds,
+        padding: const EdgeInsets.all(70),
+      ),
     );
   }
 
@@ -505,65 +469,131 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
             Expanded(
               child: Stack(
                 children: [
-                  GoogleMap(
-                    initialCameraPosition: const CameraPosition(
-                      target: _initialCenter,
-                      zoom: 12.0,
+                  FlutterMap(
+                    mapController: _mapController,
+                    options: const MapOptions(
+                      initialCenter: _initialCenter,
+                      initialZoom: 12.0,
                     ),
-                    markers: _markers,
-                    myLocationEnabled: false,
-                    myLocationButtonEnabled: false,
-                    zoomControlsEnabled: false,
-                    mapToolbarEnabled: false,
-                    compassEnabled: true,
-                    onMapCreated: (controller) {
-                      _mapController = controller;
-                      if (_markers.isNotEmpty) {
-                        _updateMapMarkers();
-                      }
-                    },
-                  ),
-
-                  // Visual overlay banner if API key is in placeholder mode
-                  if (!ApiConfig.hasValidKey)
-                    Positioned(
-                      top: 10,
-                      left: 16,
-                      right: 16,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.95),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                          border: Border.all(
-                            color: AppTheme.primaryPurple.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.vpn_key_outlined, size: 18, color: AppTheme.primaryPurple),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Google Maps Key configured in lib/config/api_config.dart',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: const Color(0xFF1E1E2D),
-                                ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: ApiConfig.mapTileUrlTemplate,
+                        userAgentPackageName: 'com.example.saahat_app',
+                        maxZoom: 19,
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          if (_fromLocation != null)
+                            Marker(
+                              point: ll.LatLng(_fromLocation!.latitude, _fromLocation!.longitude),
+                              width: 140,
+                              height: 52,
+                              alignment: Alignment.topCenter,
+                              child: _buildMapPin(
+                                title: _fromLocation!.name,
+                                color: AppTheme.primaryPurple,
+                                icon: Icons.trip_origin_rounded,
                               ),
                             ),
-                          ],
+                          if (_toLocation != null)
+                            Marker(
+                              point: ll.LatLng(_toLocation!.latitude, _toLocation!.longitude),
+                              width: 140,
+                              height: 52,
+                              alignment: Alignment.topCenter,
+                              child: _buildMapPin(
+                                title: _toLocation!.name,
+                                color: AppTheme.secondaryMagenta,
+                                icon: Icons.location_on_rounded,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  // Floating Map Controls
+                  Positioned(
+                    right: 16,
+                    bottom: 20,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildMapControlBtn(
+                          icon: Icons.add,
+                          tooltip: 'Zoom In',
+                          onPressed: () {
+                            _mapController.move(
+                              _mapController.camera.center,
+                              _mapController.camera.zoom + 1,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        _buildMapControlBtn(
+                          icon: Icons.remove,
+                          tooltip: 'Zoom Out',
+                          onPressed: () {
+                            _mapController.move(
+                              _mapController.camera.center,
+                              _mapController.camera.zoom - 1,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        _buildMapControlBtn(
+                          icon: Icons.my_location_rounded,
+                          tooltip: 'Center Location',
+                          onPressed: _useCurrentLocation,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Geoapify Live Map Tiles Status Badge
+                  Positioned(
+                    top: 10,
+                    right: 14,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: const Color(0xFF00C2A8).withValues(alpha: 0.3),
                         ),
                       ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF00C2A8),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Geoapify Live Map',
+                            style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1E1E2D),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -626,7 +656,7 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
-          if (trailing != null) trailing,
+          ?trailing,
         ],
       ),
     );
@@ -655,7 +685,7 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
         shrinkWrap: true,
         padding: EdgeInsets.zero,
         itemCount: suggestions.length,
-        separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+        separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
         itemBuilder: (context, index) {
           final s = suggestions[index];
           return ListTile(
@@ -687,4 +717,66 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
       ),
     );
   }
+
+  Widget _buildMapPin({
+    required String title,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1E1E2D),
+            ),
+          ),
+        ),
+        Icon(icon, color: color, size: 26),
+      ],
+    );
+  }
+
+  Widget _buildMapControlBtn({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Material(
+      color: Colors.white,
+      elevation: 4,
+      shape: const CircleBorder(),
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Icon(icon, size: 20, color: const Color(0xFF1E1E2D)),
+          ),
+        ),
+      ),
+    );
+  }
 }
+

@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import '../config/api_config.dart';
 import '../models/place_location.dart';
 
 class LocationService {
@@ -31,11 +34,53 @@ class LocationService {
       ),
     );
 
+    // Attempt reverse geocoding with user's Reverse Geocoding API key
+    String placeName = 'Current Location';
+    String secondary = 'GPS (${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)})';
+
+    try {
+      final resolved = await reverseGeocode(position.latitude, position.longitude);
+      if (resolved != null) {
+        placeName = resolved['name'] ?? placeName;
+        secondary = resolved['secondary'] ?? secondary;
+      }
+    } catch (_) {}
+
     return PlaceLocation(
-      name: 'Current Location',
+      name: placeName,
       latitude: position.latitude,
       longitude: position.longitude,
-      secondaryText: 'GPS Device Location',
+      secondaryText: secondary,
     );
+  }
+
+  /// Reverse geocodes coordinates to a human-readable place name using Geoapify.
+  static Future<Map<String, String>?> reverseGeocode(double lat, double lon) async {
+    try {
+      final url = Uri.parse(
+        'https://api.geoapify.com/v1/geocode/reverse'
+        '?lat=$lat&lon=$lon'
+        '&apiKey=${ApiConfig.reverseGeocodingApiKey}',
+      );
+      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final features = data['features'] as List<dynamic>?;
+        if (features != null && features.isNotEmpty) {
+          final props = features.first['properties'] as Map<String, dynamic>? ?? {};
+          final name = props['name'] as String? ??
+              props['street'] as String? ??
+              props['suburb'] as String? ??
+              props['city'] as String? ??
+              'Current Location';
+          final formatted = props['formatted'] as String? ?? '';
+          return {
+            'name': name,
+            'secondary': formatted.isNotEmpty ? formatted : 'GPS Device Location',
+          };
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 }
