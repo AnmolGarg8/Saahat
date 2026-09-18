@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/low_signal_controller.dart';
 import '../theme/app_theme.dart';
 
 class ShareEtaScreen extends StatelessWidget {
@@ -7,9 +8,14 @@ class ShareEtaScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLowSignal =
+        Theme.of(context).brightness == Brightness.dark || LowSignalController.instance.isLowSignalMode;
+
     return Scaffold(
-      backgroundColor: AppTheme.softLavenderBg,
+      backgroundColor: isLowSignal ? AppTheme.lowSignalBg : AppTheme.softLavenderBg,
       appBar: AppBar(
+        backgroundColor: isLowSignal ? AppTheme.lowSignalBg : AppTheme.softLavenderBg,
+        foregroundColor: isLowSignal ? Colors.white : const Color(0xFF1E1E2D),
         title: const Text('Share ETA'),
       ),
       body: Center(
@@ -22,13 +28,16 @@ class ShareEtaScreen extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryMagenta.withValues(alpha: 0.1),
+                  color: isLowSignal
+                      ? AppTheme.lowSignalCyan.withValues(alpha: 0.2)
+                      : AppTheme.secondaryMagenta.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
+                  border: isLowSignal ? Border.all(color: AppTheme.lowSignalCyan, width: 2) : null,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.send_outlined,
                   size: 38,
-                  color: AppTheme.secondaryMagenta,
+                  color: isLowSignal ? AppTheme.lowSignalCyan : AppTheme.secondaryMagenta,
                 ),
               ),
               const SizedBox(height: 20),
@@ -37,7 +46,7 @@ class ShareEtaScreen extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E1E2D),
+                  color: isLowSignal ? Colors.white : const Color(0xFF1E1E2D),
                 ),
               ),
               const SizedBox(height: 8),
@@ -46,7 +55,7 @@ class ShareEtaScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 14,
-                  color: const Color(0xFF64748B),
+                  color: isLowSignal ? const Color(0xFFB0B0C0) : const Color(0xFF64748B),
                 ),
               ),
             ],

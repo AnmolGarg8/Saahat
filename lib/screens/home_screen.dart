@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/low_signal_controller.dart';
 import '../theme/app_theme.dart';
+import '../widgets/low_signal_offline_view.dart';
 import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -61,10 +63,16 @@ class _HomeScreenState extends State<HomeScreen>
     ));
 
     _animController.forward();
+    LowSignalController.instance.addListener(_onLowSignalChanged);
+  }
+
+  void _onLowSignalChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    LowSignalController.instance.removeListener(_onLowSignalChanged);
     _animController.dispose();
     super.dispose();
   }
@@ -77,15 +85,17 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isLowSignal = LowSignalController.instance.isLowSignalMode;
+
     return Scaffold(
-      backgroundColor: AppTheme.softLavenderBg,
+      backgroundColor: isLowSignal ? AppTheme.lowSignalBg : AppTheme.softLavenderBg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Bar: Logo, Wordmark, Tagline & Profile Avatar
+              // Top Bar: Logo, Wordmark, Tagline, Low Signal Toggle & Profile Avatar
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -94,26 +104,31 @@ class _HomeScreenState extends State<HomeScreen>
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          AppTheme.primaryPurple,
-                          AppTheme.secondaryMagenta,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      gradient: isLowSignal
+                          ? null
+                          : const LinearGradient(
+                              colors: [
+                                AppTheme.primaryPurple,
+                                AppTheme.secondaryMagenta,
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                      color: isLowSignal ? AppTheme.lowSignalYellow : null,
                       borderRadius: BorderRadius.circular(13),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primaryPurple.withValues(alpha: 0.25),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
+                      boxShadow: isLowSignal
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: AppTheme.primaryPurple.withValues(alpha: 0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.explore_rounded,
-                      color: Colors.white,
+                      color: isLowSignal ? Colors.black : Colors.white,
                       size: 26,
                     ),
                   ),
@@ -130,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen>
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
                             letterSpacing: -0.4,
-                            color: const Color(0xFF1E1E2D),
+                            color: isLowSignal ? Colors.white : const Color(0xFF1E1E2D),
                           ),
                         ),
                         Text(
@@ -138,11 +153,58 @@ class _HomeScreenState extends State<HomeScreen>
                           style: GoogleFonts.poppins(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w500,
-                            color: AppTheme.primaryPurple,
+                            color: isLowSignal ? AppTheme.lowSignalYellow : AppTheme.primaryPurple,
                             height: 1.2,
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  // Dedicated "Low Signal Mode" Toggle Pill
+                  InkWell(
+                    onTap: () => LowSignalController.instance.toggleLowSignalMode(),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isLowSignal ? AppTheme.lowSignalYellow : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isLowSignal ? AppTheme.lowSignalYellow : const Color(0xFFCBD5E1),
+                          width: 1.5,
+                        ),
+                        boxShadow: isLowSignal
+                            ? null
+                            : [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isLowSignal
+                                ? Icons.signal_cellular_alt_1_bar_rounded
+                                : Icons.signal_cellular_alt_rounded,
+                            size: 15,
+                            color: isLowSignal ? Colors.black : const Color(0xFF475569),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isLowSignal ? 'Low Signal: ON' : 'Low Signal',
+                            style: GoogleFonts.poppins(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: isLowSignal ? Colors.black : const Color(0xFF334155),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -150,29 +212,31 @@ class _HomeScreenState extends State<HomeScreen>
                   GestureDetector(
                     onTap: _openProfile,
                     child: Container(
-                      width: 42,
-                      height: 42,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isLowSignal ? AppTheme.lowSignalCard : Colors.white,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: AppTheme.primaryPurple.withValues(alpha: 0.15),
+                          color: isLowSignal ? AppTheme.lowSignalBorder : AppTheme.primaryPurple.withValues(alpha: 0.15),
                           width: 1.5,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        boxShadow: isLowSignal
+                            ? null
+                            : [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                       ),
-                      child: const CircleAvatar(
+                      child: CircleAvatar(
                         backgroundColor: Colors.transparent,
                         child: Icon(
                           Icons.person_outline_rounded,
-                          color: AppTheme.primaryPurple,
-                          size: 22,
+                          color: isLowSignal ? Colors.white : AppTheme.primaryPurple,
+                          size: 20,
                         ),
                       ),
                     ),
@@ -180,7 +244,13 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
 
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
+
+              // When Low Signal Mode is ON, prominently show the Offline Directions & Help Points panel
+              if (isLowSignal) ...[
+                const LowSignalOfflineView(),
+                const SizedBox(height: 12),
+              ],
 
               // Hero Banner Container
               Container(
@@ -272,35 +342,38 @@ class _HomeScreenState extends State<HomeScreen>
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E1E2D),
+                  color: isLowSignal ? Colors.white : const Color(0xFF1E1E2D),
                 ),
               ),
               const SizedBox(height: 14),
 
               // 3 Animated Highlight Cards
               _buildAnimatedCard(
+                isLowSignal: isLowSignal,
                 slideAnimation: _slideAnimation1,
                 icon: Icons.wb_twilight_rounded,
-                iconBgColor: AppTheme.accentGold.withValues(alpha: 0.15),
-                iconColor: const Color(0xFFD99B00),
+                iconBgColor: isLowSignal ? AppTheme.lowSignalYellow.withValues(alpha: 0.2) : AppTheme.accentGold.withValues(alpha: 0.15),
+                iconColor: isLowSignal ? AppTheme.lowSignalYellow : const Color(0xFFD99B00),
                 title: 'Real conditions, not just distance',
                 subtitle: 'lighting, footfall, transit, time-of-day',
               ),
               const SizedBox(height: 12),
               _buildAnimatedCard(
+                isLowSignal: isLowSignal,
                 slideAnimation: _slideAnimation2,
                 icon: Icons.shield_outlined,
-                iconBgColor: AppTheme.secondaryMagenta.withValues(alpha: 0.12),
-                iconColor: AppTheme.secondaryMagenta,
+                iconBgColor: isLowSignal ? AppTheme.lowSignalCyan.withValues(alpha: 0.2) : AppTheme.secondaryMagenta.withValues(alpha: 0.12),
+                iconColor: isLowSignal ? AppTheme.lowSignalCyan : AppTheme.secondaryMagenta,
                 title: 'No live tracking, ever',
                 subtitle: 'zero continuous location logs, one-time ETA updates only',
               ),
               const SizedBox(height: 12),
               _buildAnimatedCard(
+                isLowSignal: isLowSignal,
                 slideAnimation: _slideAnimation3,
                 icon: Icons.balance_rounded,
-                iconBgColor: AppTheme.accentTeal.withValues(alpha: 0.12),
-                iconColor: AppTheme.accentTeal,
+                iconBgColor: isLowSignal ? AppTheme.lowSignalGreen.withValues(alpha: 0.2) : AppTheme.accentTeal.withValues(alpha: 0.12),
+                iconColor: isLowSignal ? AppTheme.lowSignalGreen : AppTheme.accentTeal,
                 title: 'We describe, we never judge an area',
                 subtitle: 'objective indicators, no area stigma',
               ),
@@ -315,6 +388,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildAnimatedCard({
+    required bool isLowSignal,
     required Animation<Offset> slideAnimation,
     required IconData icon,
     required Color iconBgColor,
@@ -322,73 +396,81 @@ class _HomeScreenState extends State<HomeScreen>
     required String title,
     required String subtitle,
   }) {
+    final cardContent = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: isLowSignal ? AppTheme.lowSignalCard : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: isLowSignal
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+        border: Border.all(
+          color: isLowSignal ? AppTheme.lowSignalBorder : Colors.black.withValues(alpha: 0.04),
+          width: isLowSignal ? 1.5 : 1,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: isLowSignal ? Colors.white : const Color(0xFF1E1E2D),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: isLowSignal ? const Color(0xFFB0B0C0) : const Color(0xFF64748B),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (isLowSignal) {
+      return cardContent;
+    }
+
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SlideTransition(
         position: slideAnimation,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-            border: Border.all(
-              color: Colors.black.withValues(alpha: 0.04),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: iconBgColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: iconColor,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1E1E2D),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFF64748B),
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: cardContent,
       ),
     );
   }

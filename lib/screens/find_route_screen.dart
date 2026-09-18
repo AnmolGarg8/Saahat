@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart' as ll;
 import '../config/api_config.dart';
 import '../models/place_location.dart';
 import '../services/location_service.dart';
+import '../services/low_signal_controller.dart';
 import '../services/places_service.dart';
 import '../theme/app_theme.dart';
 import 'route_results_screen.dart';
@@ -64,10 +65,17 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
         });
       }
     });
+
+    LowSignalController.instance.addListener(_onLowSignalChanged);
+  }
+
+  void _onLowSignalChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    LowSignalController.instance.removeListener(_onLowSignalChanged);
     _fromController.dispose();
     _toController.dispose();
     _fromFocusNode.dispose();
@@ -270,8 +278,10 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLowSignal = LowSignalController.instance.isLowSignalMode;
+
     return Scaffold(
-      backgroundColor: AppTheme.softLavenderBg,
+      backgroundColor: isLowSignal ? AppTheme.lowSignalBg : AppTheme.softLavenderBg,
       body: SafeArea(
         child: Column(
           children: [
@@ -279,14 +289,19 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
             Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
               decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                color: isLowSignal ? AppTheme.lowSignalCard : Colors.white,
+                border: isLowSignal
+                    ? const Border(bottom: BorderSide(color: AppTheme.lowSignalBorder, width: 1.5))
+                    : null,
+                boxShadow: isLowSignal
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -300,7 +315,7 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1E1E2D),
+                          color: isLowSignal ? Colors.white : const Color(0xFF1E1E2D),
                         ),
                       ),
                       const Spacer(),
@@ -308,7 +323,9 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppTheme.accentGold.withValues(alpha: 0.15),
+                            color: isLowSignal
+                                ? AppTheme.lowSignalYellow.withValues(alpha: 0.15)
+                                : AppTheme.accentGold.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
@@ -338,8 +355,9 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
                     label: 'From (Origin)',
                     hint: 'Enter pickup or starting place...',
                     icon: Icons.circle,
-                    iconColor: AppTheme.primaryPurple,
+                    iconColor: isLowSignal ? AppTheme.lowSignalCyan : AppTheme.primaryPurple,
                     isLoading: _isSearchingFrom,
+                    isLowSignal: isLowSignal,
                     trailing: TextButton.icon(
                       onPressed: _isLoadingGps ? null : _useCurrentLocation,
                       style: TextButton.styleFrom(
@@ -353,13 +371,17 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
                               height: 14,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.my_location_rounded, size: 15, color: AppTheme.primaryPurple),
+                          : Icon(
+                              Icons.my_location_rounded,
+                              size: 15,
+                              color: isLowSignal ? AppTheme.lowSignalYellow : AppTheme.primaryPurple,
+                            ),
                       label: Text(
                         'Current',
                         style: GoogleFonts.poppins(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryPurple,
+                          color: isLowSignal ? AppTheme.lowSignalYellow : AppTheme.primaryPurple,
                         ),
                       ),
                     ),
@@ -378,8 +400,9 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
                     label: 'To (Destination)',
                     hint: 'Enter destination or landmark...',
                     icon: Icons.location_on,
-                    iconColor: AppTheme.secondaryMagenta,
+                    iconColor: isLowSignal ? AppTheme.lowSignalYellow : AppTheme.secondaryMagenta,
                     isLoading: _isSearchingTo,
+                    isLowSignal: isLowSignal,
                   ),
 
                   // Suggestions for "To"
@@ -398,12 +421,17 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: _isLeavingNow ? Colors.white : const Color(0xFF475569),
+                            color: _isLeavingNow
+                                ? (isLowSignal ? Colors.black : Colors.white)
+                                : (isLowSignal ? Colors.white70 : const Color(0xFF475569)),
                           ),
                         ),
                         selected: _isLeavingNow,
-                        selectedColor: AppTheme.primaryPurple,
-                        backgroundColor: const Color(0xFFF1F5F9),
+                        selectedColor: isLowSignal ? AppTheme.lowSignalYellow : AppTheme.primaryPurple,
+                        backgroundColor: isLowSignal ? AppTheme.lowSignalBg : const Color(0xFFF1F5F9),
+                        side: isLowSignal
+                            ? BorderSide(color: _isLeavingNow ? AppTheme.lowSignalYellow : AppTheme.lowSignalBorder)
+                            : null,
                         showCheckmark: false,
                         onSelected: (val) {
                           setState(() {
@@ -414,7 +442,11 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
                       ),
                       const SizedBox(width: 8),
                       ActionChip(
-                        avatar: const Icon(Icons.access_time_rounded, size: 14, color: AppTheme.primaryPurple),
+                        avatar: Icon(
+                          Icons.access_time_rounded,
+                          size: 14,
+                          color: isLowSignal ? AppTheme.lowSignalCyan : AppTheme.primaryPurple,
+                        ),
                         label: Text(
                           !_isLeavingNow && _departureTime != null
                               ? _departureTime!.format(context)
@@ -422,10 +454,15 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: !_isLeavingNow ? AppTheme.primaryPurple : const Color(0xFF475569),
+                            color: !_isLeavingNow
+                                ? (isLowSignal ? AppTheme.lowSignalYellow : AppTheme.primaryPurple)
+                                : (isLowSignal ? Colors.white70 : const Color(0xFF475569)),
                           ),
                         ),
-                        backgroundColor: !_isLeavingNow ? AppTheme.primaryPurple.withValues(alpha: 0.12) : const Color(0xFFF1F5F9),
+                        backgroundColor: !_isLeavingNow
+                            ? (isLowSignal ? AppTheme.lowSignalYellow.withValues(alpha: 0.15) : AppTheme.primaryPurple.withValues(alpha: 0.12))
+                            : (isLowSignal ? AppTheme.lowSignalBg : const Color(0xFFF1F5F9)),
+                        side: isLowSignal ? const BorderSide(color: AppTheme.lowSignalBorder) : null,
                         onPressed: _pickDepartureTime,
                       ),
                     ],
@@ -440,8 +477,8 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
                     child: ElevatedButton(
                       onPressed: _navigateToRouteResults,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryPurple,
-                        foregroundColor: Colors.white,
+                        backgroundColor: isLowSignal ? AppTheme.lowSignalYellow : AppTheme.primaryPurple,
+                        foregroundColor: isLowSignal ? Colors.black : Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -455,10 +492,15 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
+                              color: isLowSignal ? Colors.black : Colors.white,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_rounded, size: 16),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 16,
+                            color: isLowSignal ? Colors.black : Colors.white,
+                          ),
                         ],
                       ),
                     ),
@@ -613,14 +655,17 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
     required IconData icon,
     required Color iconColor,
     required bool isLoading,
+    bool isLowSignal = false,
     Widget? trailing,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: isLowSignal ? AppTheme.lowSignalBg : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: focusNode.hasFocus ? AppTheme.primaryPurple : const Color(0xFFE2E8F0),
+          color: focusNode.hasFocus
+              ? (isLowSignal ? AppTheme.lowSignalYellow : AppTheme.primaryPurple)
+              : (isLowSignal ? AppTheme.lowSignalBorder : const Color(0xFFE2E8F0)),
           width: focusNode.hasFocus ? 1.5 : 1.0,
         ),
       ),
@@ -636,26 +681,29 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: const Color(0xFF1E1E2D),
+                color: isLowSignal ? Colors.white : const Color(0xFF1E1E2D),
               ),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: hint,
                 hintStyle: GoogleFonts.poppins(
                   fontSize: 13,
-                  color: const Color(0xFF94A3B8),
+                  color: isLowSignal ? const Color(0xFF888899) : const Color(0xFF94A3B8),
                 ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),
             ),
           ),
           if (isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
               child: SizedBox(
                 width: 14,
                 height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: isLowSignal ? AppTheme.lowSignalYellow : AppTheme.primaryPurple,
+                ),
               ),
             ),
           ?trailing,

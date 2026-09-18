@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import '../config/api_config.dart';
 import '../models/place_location.dart';
+import '../services/offline_cache_service.dart';
 import '../services/places_service.dart';
 import '../services/route_scoring_service.dart';
 import '../services/routing_service.dart';
@@ -80,6 +81,7 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
         _selectedRouteId = routes.first.id;
         // Expand the best match by default
         _expandedRouteIds.add(routes.first.id);
+        _persistRouteToOffline(routes.first);
       }
       _isLoading = false;
     });
@@ -88,6 +90,51 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fitMapToRoute();
     });
+  }
+
+  void _persistRouteToOffline(ScoredRoute route) {
+    final cachedRoute = OfflineCachedRoute(
+      origin: widget.from.name,
+      destination: widget.to.name,
+      routeTitle: route.title,
+      durationText: '${route.durationMinutes} min',
+      distanceText: '${route.distanceKm} km',
+      fitScore: route.fitScore,
+      contextTag: route.contextTag,
+      steps: [
+        OfflineRouteStep(
+          instruction: 'Depart ${widget.from.name} toward main corridor',
+          distanceText: '${(route.distanceKm * 0.25).toStringAsFixed(1)} km',
+          iconType: 'depart',
+          safetyNote: 'Well-lit departure zone with active streetlights',
+        ),
+        OfflineRouteStep(
+          instruction: 'Proceed along ${route.viaRoad}',
+          distanceText: '${(route.distanceKm * 0.5).toStringAsFixed(1)} km',
+          iconType: 'straight',
+          safetyNote: route.contextTag,
+        ),
+        OfflineRouteStep(
+          instruction: 'Arrive at destination: ${widget.to.name}',
+          distanceText: '${(route.distanceKm * 0.25).toStringAsFixed(1)} km',
+          iconType: 'arrive',
+          safetyNote: 'Designated brightly lit arrival zone',
+        ),
+      ],
+      savedAt: DateTime.now(),
+    );
+    OfflineCacheService.saveRouteForOffline(cachedRoute);
+
+    if (_safetyPOIs.isNotEmpty) {
+      final cachedPois = _safetyPOIs.map((p) => OfflineHelpPoint(
+        name: p.name,
+        category: p.category,
+        address: p.address,
+        distance: 'Along Route Corridor',
+        phone: p.category == 'police' ? '+91-11-2669-1861' : p.category == 'hospital' ? '102' : '112',
+      )).toList();
+      OfflineCacheService.saveHelpPoints(cachedPois);
+    }
   }
 
   void _fitMapToRoute() {
@@ -113,6 +160,10 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
     setState(() {
       _selectedRouteId = routeId;
     });
+    final match = _routes.where((r) => r.id == routeId);
+    if (match.isNotEmpty) {
+      _persistRouteToOffline(match.first);
+    }
   }
 
   void _toggleExpand(String routeId) {
@@ -131,6 +182,8 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
     setState(() {
       _downloadedRouteIds.add(route.id);
     });
+    _persistRouteToOffline(route);
+
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
