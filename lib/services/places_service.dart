@@ -148,6 +148,49 @@ class PlacesService {
     return [];
   }
 
+  /// Fetches safety points of interest (Police stations, Hospitals, Transit points) along a route coordinate.
+  Future<List<SafetyPOI>> getSafetyPOIsAlongRoute({
+    required double lat,
+    required double lon,
+    int radiusMeters = 4000,
+  }) async {
+    final raw = await searchNearbyPlaces(
+      lat: lat,
+      lon: lon,
+      categories: 'service.police,healthcare.hospital,public_transport',
+      radiusMeters: radiusMeters,
+    );
+
+    final List<SafetyPOI> pois = [];
+    for (final f in raw) {
+      final props = f['properties'] as Map<String, dynamic>? ?? {};
+      final geom = f['geometry'] as Map<String, dynamic>? ?? {};
+      final coords = geom['coordinates'] as List<dynamic>?;
+      if (coords != null && coords.length >= 2) {
+        final pLon = (coords[0] as num).toDouble();
+        final pLat = (coords[1] as num).toDouble();
+        final name = props['name'] as String? ?? 'Safety Point';
+        final cats = (props['categories'] as List<dynamic>?)?.map((c) => c.toString()).toList() ?? [];
+
+        String cat = 'transit';
+        if (cats.any((c) => c.contains('police'))) {
+          cat = 'police';
+        } else if (cats.any((c) => c.contains('hospital'))) {
+          cat = 'hospital';
+        }
+
+        pois.add(SafetyPOI(
+          name: name,
+          category: cat,
+          latitude: pLat,
+          longitude: pLon,
+          address: props['formatted'] as String? ?? '',
+        ));
+      }
+    }
+    return pois;
+  }
+
   List<PlaceSuggestion> _getFallbackSuggestions(String query) {
     final lower = query.toLowerCase();
     final samplePlaces = [

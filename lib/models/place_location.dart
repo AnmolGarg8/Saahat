@@ -65,3 +65,20 @@ class PlaceSuggestion {
     );
   }
 }
+
+class SafetyPOI {
+  final String name;
+  final String category; // 'police', 'hospital', 'transit'
+  final double latitude;
+  final double longitude;
+  final String address;
+
+  const SafetyPOI({
+    required this.name,
+    required this.category,
+    required this.latitude,
+    required this.longitude,
+    required this.address,
+  });
+}
+

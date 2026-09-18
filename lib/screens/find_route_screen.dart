@@ -115,6 +115,7 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
   }
 
   Future<void> _selectFromSuggestion(PlaceSuggestion suggestion) async {
+    FocusScope.of(context).unfocus();
     _fromFocusNode.unfocus();
     _fromController.text = suggestion.primaryText;
     setState(() => _fromSuggestions = []);
@@ -129,6 +130,7 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
   }
 
   Future<void> _selectToSuggestion(PlaceSuggestion suggestion) async {
+    FocusScope.of(context).unfocus();
     _toFocusNode.unfocus();
     _toController.text = suggestion.primaryText;
     setState(() => _toSuggestions = []);
