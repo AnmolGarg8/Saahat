@@ -1,55 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saahat_app/main.dart';
-import 'package:saahat_app/screens/profile_screen.dart';
-import 'package:saahat_app/screens/sos_screen.dart';
+import 'package:saahat_app/screens/route_results_screen.dart';
 
 void main() {
-  testWidgets('Saahat Home screen and Plan My Journey navigation test', (WidgetTester tester) async {
+  testWidgets('Find Route screen search, autocomplete and navigation test', (WidgetTester tester) async {
     await tester.pumpWidget(const SaahatApp());
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 900));
 
-    // Verify branding and hero section on Home screen
-    expect(find.text('Saahat'), findsOneWidget);
-    expect(find.text('Your journey. Your choice. Your confidence.'), findsOneWidget);
-    expect(find.text('Go beyond the fastest route.'), findsOneWidget);
-    expect(find.textContaining('Saahat helps you choose a journey that fits the moment'), findsOneWidget);
-
-    // Verify 3 feature highlight cards
-    expect(find.text('Real conditions, not just distance'), findsOneWidget);
-    expect(find.text('No live tracking, ever'), findsOneWidget);
-    expect(find.text('We describe, we never judge an area'), findsOneWidget);
-
-    // Verify "Plan My Journey" button navigates to Find Route tab
-    expect(find.text('Plan My Journey'), findsOneWidget);
-    await tester.tap(find.text('Plan My Journey'));
+    // Tap "Find Route" tab in bottom navigation
+    await tester.tap(find.text('Find Route'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+
+    // Verify search fields and buttons exist
     expect(find.text('Find Safe Route'), findsOneWidget);
+    expect(find.text('Current'), findsOneWidget);
+    expect(find.text('Leaving now'), findsOneWidget);
+    expect(find.text('Set time'), findsOneWidget);
+    expect(find.text('Search Journey'), findsOneWidget);
 
-    // Switch back to Home tab
-    await tester.tap(find.text('Home'));
+    // Enter text in "From" field
+    final fromField = find.byWidgetPredicate(
+      (widget) => widget is TextField && widget.decoration?.hintText == 'Enter pickup or starting place...',
+    );
+    expect(fromField, findsOneWidget);
+    await tester.enterText(fromField, 'Connaught');
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 200));
 
-    // Verify avatar icon opens ProfileScreen
-    expect(find.byIcon(Icons.person_outline_rounded), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.person_outline_rounded));
+    // Suggestions should show 'Connaught Place'
+    expect(find.text('Connaught Place'), findsOneWidget);
+    await tester.tap(find.text('Connaught Place'));
+    await tester.pump();
+
+    // Enter text in "To" field
+    final toField = find.byWidgetPredicate(
+      (widget) => widget is TextField && widget.decoration?.hintText == 'Enter destination or landmark...',
+    );
+    expect(toField, findsOneWidget);
+    await tester.enterText(toField, 'Hauz');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // Suggestions should show 'Hauz Khas Village'
+    expect(find.text('Hauz Khas Village'), findsOneWidget);
+    await tester.tap(find.text('Hauz Khas Village'));
+    await tester.pump();
+
+    // Tap "Search Journey" button
+    await tester.tap(find.text('Search Journey'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.byType(ProfileScreen), findsOneWidget);
 
-    // Go back from ProfileScreen
-    await tester.tap(find.byType(BackButton));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
-
-    // Verify SOS button opens SosScreen
-    expect(find.text('SOS'), findsOneWidget);
-    await tester.tap(find.text('SOS'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(find.byType(SosScreen), findsOneWidget);
+    // Verify navigation to RouteResultsScreen with selected places
+    expect(find.byType(RouteResultsScreen), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(RouteResultsScreen), matching: find.text('Connaught Place')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: find.byType(RouteResultsScreen), matching: find.text('Hauz Khas Village')),
+      findsOneWidget,
+    );
+    expect(find.text('Route Results'), findsOneWidget);
   });
 }
