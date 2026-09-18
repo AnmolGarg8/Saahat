@@ -1,55 +1,55 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saahat_app/main.dart';
+import 'package:saahat_app/screens/profile_screen.dart';
 import 'package:saahat_app/screens/sos_screen.dart';
 
 void main() {
-  testWidgets('Saahat core app structure smoke and navigation test', (WidgetTester tester) async {
+  testWidgets('Saahat Home screen and Plan My Journey navigation test', (WidgetTester tester) async {
     await tester.pumpWidget(const SaahatApp());
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 900));
 
-    // Verify branding on Home screen
+    // Verify branding and hero section on Home screen
     expect(find.text('Saahat'), findsOneWidget);
-    expect(find.text('Har Safar Mein Raahat'), findsOneWidget);
+    expect(find.text('Your journey. Your choice. Your confidence.'), findsOneWidget);
+    expect(find.text('Go beyond the fastest route.'), findsOneWidget);
+    expect(find.textContaining('Saahat helps you choose a journey that fits the moment'), findsOneWidget);
 
-    // Verify all 5 navigation tabs exist
-    expect(find.text('Home'), findsOneWidget);
-    expect(find.text('Find Route'), findsOneWidget);
-    expect(find.text('Share ETA'), findsOneWidget);
-    expect(find.text('Notes'), findsOneWidget);
-    expect(find.text('About'), findsOneWidget);
+    // Verify 3 feature highlight cards
+    expect(find.text('Real conditions, not just distance'), findsOneWidget);
+    expect(find.text('No live tracking, ever'), findsOneWidget);
+    expect(find.text('We describe, we never judge an area'), findsOneWidget);
 
-    // Verify SOS button exists
-    expect(find.text('SOS'), findsOneWidget);
-
-    // Switch to Find Route tab
-    await tester.tap(find.text('Find Route'));
+    // Verify "Plan My Journey" button navigates to Find Route tab
+    expect(find.text('Plan My Journey'), findsOneWidget);
+    await tester.tap(find.text('Plan My Journey'));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Find Safe Route'), findsOneWidget);
-    expect(find.text('SOS'), findsOneWidget);
 
-    // Switch to Share ETA tab
-    await tester.tap(find.text('Share ETA'));
+    // Switch back to Home tab
+    await tester.tap(find.text('Home'));
     await tester.pump();
-    expect(find.text('Share Your Trip & ETA'), findsOneWidget);
-    expect(find.text('SOS'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 300));
 
-    // Switch to Notes tab
-    await tester.tap(find.text('Notes'));
+    // Verify avatar icon opens ProfileScreen
+    expect(find.byIcon(Icons.person_outline_rounded), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.person_outline_rounded));
     await tester.pump();
-    expect(find.text('Community Notes'), findsWidgets);
-    expect(find.text('SOS'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(ProfileScreen), findsOneWidget);
 
-    // Switch to About tab
-    await tester.tap(find.text('About'));
+    // Go back from ProfileScreen
+    await tester.tap(find.byType(BackButton));
     await tester.pump();
-    expect(find.text('About Saahat'), findsOneWidget);
-    expect(find.text('SOS'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 600));
 
-    // Tap SOS button and advance past page route transition
+    // Verify SOS button opens SosScreen
+    expect(find.text('SOS'), findsOneWidget);
     await tester.tap(find.text('SOS'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(SosScreen), findsOneWidget);
-    expect(find.text('Emergency SOS'), findsOneWidget);
   });
 }

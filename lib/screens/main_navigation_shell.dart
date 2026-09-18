@@ -17,14 +17,6 @@ class MainNavigationShell extends StatefulWidget {
 class _MainNavigationShellState extends State<MainNavigationShell> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    FindRouteScreen(),
-    ShareEtaScreen(),
-    CommunityNotesScreen(),
-    AboutScreen(),
-  ];
-
   void _onTabSelected(int index) {
     setState(() {
       _currentIndex = index;
@@ -39,10 +31,20 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
 
   @override
   Widget build(BuildContext context) {
+    final screens = [
+      HomeScreen(
+        onPlanJourney: () => _onTabSelected(1),
+      ),
+      const FindRouteScreen(),
+      const ShareEtaScreen(),
+      const CommunityNotesScreen(),
+      const AboutScreen(),
+    ];
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _screens,
+        children: screens,
       ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 8.0, right: 4.0),
