@@ -483,6 +483,16 @@ class OfflineCacheService {
     return byteData!.buffer.asUint8List();
   }
 
+  /// Checks whether a route has been explicitly saved or cached in local storage.
+  static Future<bool> hasSavedRoute() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.containsKey(_keyLastRoute);
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Retrieves the last cached route or the fallback offline route.
   static Future<OfflineCachedRoute> getLastCachedRoute() async {
     try {

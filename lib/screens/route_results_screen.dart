@@ -11,7 +11,10 @@ import '../services/offline_cache_service.dart';
 import '../services/places_service.dart';
 import '../services/route_scoring_service.dart';
 import '../services/routing_service.dart';
+import '../services/saarthi_ai_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/saarthi_chat_sheet.dart';
+import '../widgets/saarthi_floating_button.dart';
 
 class RouteResultsScreen extends StatefulWidget {
   final PlaceLocation from;
@@ -88,6 +91,7 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
         // Expand the best match by default
         _expandedRouteIds.add(routes.first.id);
         _persistRouteToOffline(routes.first);
+        _updateSaarthiRouteContext(routes.first);
       }
       _isLoading = false;
     });
@@ -176,7 +180,24 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
     final match = _routes.where((r) => r.id == routeId);
     if (match.isNotEmpty) {
       _persistRouteToOffline(match.first);
+      _updateSaarthiRouteContext(match.first);
     }
+  }
+
+  void _updateSaarthiRouteContext(ScoredRoute route) {
+    SaarthiAiService.instance.setActiveRoute(
+      ActiveRouteInfo(
+        title: route.title,
+        origin: widget.from.name,
+        destination: widget.to.name,
+        durationText: '${route.durationMinutes} min',
+        distanceText: '${route.distanceKm.toStringAsFixed(1)} km',
+        fitScore: route.fitScore,
+        contextTag: route.contextTag,
+        pros: route.pros,
+        cons: route.cons,
+      ),
+    );
   }
 
   void _toggleExpand(String routeId) {
@@ -265,6 +286,13 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.softLavenderBg,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 8.0, left: 16.0),
+        child: SaarthiFloatingButton(
+          onTap: () => SaarthiChatSheet.show(context),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       appBar: AppBar(
         title: Text(
           'Route Results',

@@ -33,6 +33,21 @@ class ApiConfig {
     defaultValue: mapTilesApiKey,
   );
 
+  /// OpenAI API Key for Saarthi Chatbot
+  static String openAiApiKey = const String.fromEnvironment(
+    'OPENAI_API_KEY',
+    defaultValue: '',
+  );
+
+  /// Anthropic API Key for Saarthi Chatbot
+  static String anthropicApiKey = const String.fromEnvironment(
+    'ANTHROPIC_API_KEY',
+    defaultValue: '',
+  );
+
+  /// Selected AI Provider ('openai' or 'anthropic')
+  static String aiProvider = 'openai';
+
   /// Helper to check if real keys are configured.
   static bool get hasValidKey =>
       autocompleteApiKey.isNotEmpty &&

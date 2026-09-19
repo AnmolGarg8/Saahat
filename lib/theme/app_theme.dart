@@ -26,6 +26,7 @@ class AppTheme {
   static const Color lowSignalGreen = Color(0xFF00E676);
   static const Color lowSignalRed = Color(0xFFFF1744);
   static const Color lowSignalBorder = Color(0xFF333348);
+  static const Color lowSignalText = Colors.white;
 
   static ThemeData get lightTheme {
     final baseTextTheme = GoogleFonts.poppinsTextTheme();

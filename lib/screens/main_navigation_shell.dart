@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/low_signal_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pulsing_sos_button.dart';
+import '../widgets/saarthi_floating_button.dart';
+import '../widgets/saarthi_chat_sheet.dart';
 import 'home_screen.dart';
 import 'find_route_screen.dart';
 import 'share_eta_screen.dart';
@@ -123,12 +125,21 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         ),
       ),
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 8.0, right: 4.0),
-        child: PulsingSosButton(
-          onTap: _openSosScreen,
+        padding: const EdgeInsets.only(bottom: 8.0, left: 32.0, right: 0.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            SaarthiFloatingButton(
+              onTap: () => SaarthiChatSheet.show(context),
+            ),
+            PulsingSosButton(
+              onTap: _openSosScreen,
+            ),
+          ],
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: isLowSignal ? Colors.black : Colors.white,
