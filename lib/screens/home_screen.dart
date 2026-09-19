@@ -99,74 +99,97 @@ class _HomeScreenState extends State<HomeScreen>
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Logo
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: isLowSignal
-                          ? null
-                          : const LinearGradient(
-                              colors: [
-                                AppTheme.primaryPurple,
-                                AppTheme.secondaryMagenta,
+                  // Official Logo Icon
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isLowSignal ? Colors.black : Colors.white,
+                        borderRadius: BorderRadius.circular(13),
+                        border: Border.all(
+                          color: isLowSignal ? AppTheme.lowSignalYellow : const Color(0xFFEDE9FE),
+                          width: 1.5,
+                        ),
+                        boxShadow: isLowSignal
+                            ? null
+                            : [
+                                BoxShadow(
+                                  color: AppTheme.primaryPurple.withValues(alpha: 0.15),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
                               ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                      color: isLowSignal ? AppTheme.lowSignalYellow : null,
-                      borderRadius: BorderRadius.circular(13),
-                      boxShadow: isLowSignal
-                          ? null
-                          : [
-                              BoxShadow(
-                                color: AppTheme.primaryPurple.withValues(alpha: 0.25),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                    ),
-                    child: Icon(
-                      Icons.explore_rounded,
-                      color: isLowSignal ? Colors.black : Colors.white,
-                      size: 26,
+                      ),
+                      child: Image.asset(
+                        'assets/images/saahat_icon.png',
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // Wordmark & Tagline
+                  const SizedBox(width: 10),
+                  // Wordmark, Privacy Badge & Official Tagline
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'Saahat',
-                          style: GoogleFonts.poppins(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.4,
-                            color: isLowSignal ? Colors.white : const Color(0xFF1E1E2D),
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Saahat',
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.4,
+                                color: isLowSignal ? Colors.white : const Color(0xFF6C2BD9),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: isLowSignal ? const Color(0xFF231E3A) : const Color(0xFFF3E8FF),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isLowSignal ? AppTheme.lowSignalYellow : const Color(0xFFD8B4FE),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                '✨ Privacy First',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w700,
+                                  color: isLowSignal ? AppTheme.lowSignalYellow : const Color(0xFF7C3AED),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         Text(
-                          'Your journey. Your choice. Your confidence.',
+                          'Har Safar Mein Raahat',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.poppins(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w500,
-                            color: isLowSignal ? AppTheme.lowSignalYellow : AppTheme.primaryPurple,
-                            height: 1.2,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: isLowSignal ? AppTheme.lowSignalYellow : const Color(0xFF64748B),
+                            letterSpacing: 0.2,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   // Dedicated "Low Signal Mode" Toggle Pill
                   InkWell(
                     onTap: () => LowSignalController.instance.toggleLowSignalMode(),
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                       decoration: BoxDecoration(
                         color: isLowSignal ? AppTheme.lowSignalYellow : Colors.white,
                         borderRadius: BorderRadius.circular(20),
@@ -191,16 +214,16 @@ class _HomeScreenState extends State<HomeScreen>
                             isLowSignal
                                 ? Icons.signal_cellular_alt_1_bar_rounded
                                 : Icons.signal_cellular_alt_rounded,
-                            size: 15,
-                            color: isLowSignal ? Colors.black : const Color(0xFF475569),
+                            size: 13,
+                            color: isLowSignal ? Colors.black : AppTheme.primaryPurple,
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 3),
                           Text(
-                            isLowSignal ? 'Low Signal: ON' : 'Low Signal',
+                            isLowSignal ? 'ON' : 'Low Signal',
                             style: GoogleFonts.poppins(
-                              fontSize: 10.5,
+                              fontSize: 10,
                               fontWeight: FontWeight.w700,
-                              color: isLowSignal ? Colors.black : const Color(0xFF334155),
+                              color: isLowSignal ? Colors.black : const Color(0xFF1E1E2D),
                             ),
                           ),
                         ],

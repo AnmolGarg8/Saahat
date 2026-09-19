@@ -310,6 +310,15 @@ class _FindRouteScreenState extends State<FindRouteScreen> {
                   // Title Bar
                   Row(
                     children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.asset(
+                          'assets/images/saahat_icon.png',
+                          width: 24,
+                          height: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         'Find Safe Route',
                         style: GoogleFonts.poppins(

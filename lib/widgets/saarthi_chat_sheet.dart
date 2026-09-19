@@ -160,27 +160,13 @@ class _SaarthiChatSheetState extends State<SaarthiChatSheet> {
             ),
             child: Row(
               children: [
-                // Avatar
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    gradient: isLowSignal
-                        ? null
-                        : const LinearGradient(
-                            colors: [Color(0xFF6C5CE7), Color(0xFF00CEC9)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                    color: isLowSignal ? AppTheme.lowSignalYellow : null,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.auto_awesome,
-                      color: isLowSignal ? Colors.black : Colors.white,
-                      size: 22,
-                    ),
+                // Official Saahat Icon Avatar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/images/saahat_icon.png',
+                    width: 44,
+                    height: 44,
                   ),
                 ),
                 const SizedBox(width: 12),

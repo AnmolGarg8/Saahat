@@ -241,22 +241,12 @@ class _ShareEtaScreenState extends State<ShareEtaScreen> {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        gradient: isLowSignal
-                            ? null
-                            : const LinearGradient(
-                                colors: [AppTheme.primaryPurple, AppTheme.secondaryMagenta],
-                              ),
-                        color: isLowSignal ? AppTheme.lowSignalYellow : null,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.share_location_rounded,
-                        size: 22,
-                        color: isLowSignal ? Colors.black : Colors.white,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.asset(
+                        'assets/images/saahat_icon.png',
+                        width: 40,
+                        height: 40,
                       ),
                     ),
                     const SizedBox(width: 12),

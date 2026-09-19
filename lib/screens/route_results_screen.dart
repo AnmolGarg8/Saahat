@@ -64,42 +64,63 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
   Future<void> _loadRoutesAndSafetyPOIs() async {
     setState(() => _isLoading = true);
 
-    // Compute midpoint to search for safety POIs along the journey
-    final midLat = (widget.from.latitude + widget.to.latitude) / 2.0;
-    final midLon = (widget.from.longitude + widget.to.longitude) / 2.0;
+    try {
+      // Compute midpoint to search for safety POIs along the journey
+      final midLat = (widget.from.latitude + widget.to.latitude) / 2.0;
+      final midLon = (widget.from.longitude + widget.to.longitude) / 2.0;
 
-    // Concurrently fetch safety POIs and routes
-    final results = await Future.wait([
-      _placesService.getSafetyPOIsAlongRoute(lat: midLat, lon: midLon),
-      _routingService.getMultiRouteOptions(
-        from: widget.from,
-        to: widget.to,
-        timePeriod: _timePeriod,
-      ),
-    ]);
+      // Concurrently fetch safety POIs and routes
+      final results = await Future.wait([
+        _placesService.getSafetyPOIsAlongRoute(lat: midLat, lon: midLon),
+        _routingService.getMultiRouteOptions(
+          from: widget.from,
+          to: widget.to,
+          timePeriod: _timePeriod,
+        ),
+      ]);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    final pois = results[0] as List<SafetyPOI>;
-    final routes = results[1] as List<ScoredRoute>;
+      final pois = results[0] as List<SafetyPOI>;
+      final routes = results[1] as List<ScoredRoute>;
 
-    setState(() {
-      _safetyPOIs = pois;
-      _routes = routes;
-      if (routes.isNotEmpty) {
-        _selectedRouteId = routes.first.id;
-        // Expand the best match by default
-        _expandedRouteIds.add(routes.first.id);
-        _persistRouteToOffline(routes.first);
-        _updateSaarthiRouteContext(routes.first);
+      setState(() {
+        _safetyPOIs = pois;
+        _routes = routes;
+        if (routes.isNotEmpty) {
+          _selectedRouteId = routes.first.id;
+          // Expand the best match by default
+          _expandedRouteIds.add(routes.first.id);
+          _persistRouteToOffline(routes.first);
+          _updateSaarthiRouteContext(routes.first);
+        }
+        _isLoading = false;
+      });
+
+      // Fit map bounds once routes are loaded
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fitMapToRoute();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      try {
+        final fallbackRoutes = await _routingService.getMultiRouteOptions(
+          from: widget.from,
+          to: widget.to,
+          timePeriod: _timePeriod,
+        );
+        setState(() {
+          _routes = fallbackRoutes;
+          if (_routes.isNotEmpty) {
+            _selectedRouteId = _routes.first.id;
+            _expandedRouteIds.add(_routes.first.id);
+          }
+          _isLoading = false;
+        });
+      } catch (_) {
+        if (mounted) setState(() => _isLoading = false);
       }
-      _isLoading = false;
-    });
-
-    // Fit map bounds once routes are loaded
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fitMapToRoute();
-    });
+    }
   }
 
   Future<int> _persistRouteToOffline(ScoredRoute route, {Uint8List? mapBytes}) async {
@@ -294,9 +315,23 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       appBar: AppBar(
-        title: Text(
-          'Route Results',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 18),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset(
+                'assets/images/saahat_icon.png',
+                width: 24,
+                height: 24,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Route Results',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 18),
+            ),
+          ],
         ),
         elevation: 0,
         backgroundColor: Colors.white,

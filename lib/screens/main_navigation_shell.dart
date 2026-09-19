@@ -114,11 +114,29 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                 ),
               ),
 
-            // Active Tab View
+            // Active Tab View with smooth transition animations
             Expanded(
-              child: IndexedStack(
-                index: _currentIndex,
-                children: screens,
+              child: Stack(
+                children: List.generate(screens.length, (index) {
+                  final isActive = index == _currentIndex;
+                  return AnimatedSlide(
+                    offset: isActive ? Offset.zero : const Offset(0.04, 0),
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOutCubic,
+                    child: AnimatedOpacity(
+                      opacity: isActive ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeInOut,
+                      child: IgnorePointer(
+                        ignoring: !isActive,
+                        child: TickerMode(
+                          enabled: isActive,
+                          child: screens[index],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
               ),
             ),
           ],

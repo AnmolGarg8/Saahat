@@ -135,10 +135,13 @@ class _CommunityNotesScreenState extends State<CommunityNotesScreen> {
         elevation: isLowSignal ? 0 : 0.5,
         title: Row(
           children: [
-            Icon(
-              Icons.chat_bubble_rounded,
-              color: isLowSignal ? AppTheme.lowSignalYellow : AppTheme.primaryPurple,
-              size: 22,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset(
+                'assets/images/saahat_icon.png',
+                width: 24,
+                height: 24,
+              ),
             ),
             const SizedBox(width: 8),
             Text(
