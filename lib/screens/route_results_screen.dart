@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ import '../services/saarthi_ai_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/saarthi_chat_sheet.dart';
 import '../widgets/saarthi_floating_button.dart';
+import 'live_navigation_screen.dart';
 
 class RouteResultsScreen extends StatefulWidget {
   final PlaceLocation from;
@@ -42,6 +44,10 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
   final Map<String, String> _downloadedRouteSizes = {};
   bool _isDownloading = false;
 
+  final ScrollController _scrollController = ScrollController();
+  double _saarthiOpacity = 1.0;
+  Timer? _scrollStopTimer;
+
   List<ScoredRoute> _routes = [];
   List<SafetyPOI> _safetyPOIs = [];
   String? _selectedRouteId;
@@ -54,11 +60,47 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _timePeriod = RouteScoringService.resolveTimePeriod(
       widget.departureTime,
       widget.isLeavingNow,
     );
     _loadRoutesAndSafetyPOIs();
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients &&
+        _scrollController.position.isScrollingNotifier.value) {
+      if (_saarthiOpacity != 0.2) {
+        setState(() => _saarthiOpacity = 0.2);
+      }
+    }
+    _scrollStopTimer?.cancel();
+    _scrollStopTimer = Timer(const Duration(milliseconds: 350), () {
+      if (mounted && _saarthiOpacity != 1.0) {
+        setState(() => _saarthiOpacity = 1.0);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _scrollStopTimer?.cancel();
+    super.dispose();
+  }
+
+  void _navigateToLiveNavigation(ScoredRoute route) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LiveNavigationScreen(
+          route: route,
+          from: widget.from,
+          to: widget.to,
+          safetyPOIs: _safetyPOIs,
+        ),
+      ),
+    );
   }
 
   Future<void> _loadRoutesAndSafetyPOIs() async {
@@ -309,8 +351,12 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
       backgroundColor: AppTheme.softLavenderBg,
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 8.0, left: 16.0),
-        child: SaarthiFloatingButton(
-          onTap: () => SaarthiChatSheet.show(context),
+        child: AnimatedOpacity(
+          opacity: _saarthiOpacity,
+          duration: const Duration(milliseconds: 250),
+          child: SaarthiFloatingButton(
+            onTap: () => SaarthiChatSheet.show(context),
+          ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
@@ -366,6 +412,8 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
               ),
             )
           : SingleChildScrollView(
+              controller: _scrollController,
+              padding: const EdgeInsets.only(bottom: 120),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -413,7 +461,7 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
 
                   // 5. List of Route Cards
                   ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                     physics: const NeverScrollableScrollPhysics(),
                     shrinkWrap: true,
                     itemCount: _routes.length,
@@ -990,6 +1038,35 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
 
               // 4. Pros & Cons Lists
               _buildProsConsSection(route),
+
+              const SizedBox(height: 12),
+
+              // Prominent "Start Journey" Button (Full Width, Primary Purple)
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () => _navigateToLiveNavigation(route),
+                  icon: const Icon(Icons.navigation_rounded, color: Colors.white, size: 20),
+                  label: Text(
+                    'Start Journey',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isSelected ? AppTheme.primaryPurple : const Color(0xFF7C3AED),
+                    elevation: isSelected ? 4 : 1,
+                    shadowColor: AppTheme.primaryPurple.withValues(alpha: 0.4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 10),
 

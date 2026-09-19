@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'services/low_signal_controller.dart';
 import 'theme/app_theme.dart';
 import 'screens/main_navigation_shell.dart';
+import 'screens/live_navigation_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +25,22 @@ class SaahatApp extends StatelessWidget {
           darkTheme: AppTheme.lowSignalDarkTheme,
           themeMode: isLowSignal ? ThemeMode.dark : ThemeMode.light,
           home: const MainNavigationShell(),
+          onGenerateRoute: (settings) {
+            if (settings.name == '/live_navigation' || settings.name == '/navigation') {
+              final args = settings.arguments as Map<String, dynamic>?;
+              if (args != null && args['route'] != null) {
+                return MaterialPageRoute(
+                  builder: (_) => LiveNavigationScreen(
+                    route: args['route'],
+                    from: args['from'],
+                    to: args['to'],
+                    safetyPOIs: args['safetyPOIs'] ?? const [],
+                  ),
+                );
+              }
+            }
+            return null;
+          },
         );
       },
     );
