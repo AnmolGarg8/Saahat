@@ -33,7 +33,7 @@ class ApiConfig {
     defaultValue: mapTilesApiKey,
   );
 
-  /// OpenAI API Key for Saarthi Chatbot
+  /// OpenAI API Key for Saarthi Chatbot (injected via --dart-define or runtime setter)
   static String openAiApiKey = const String.fromEnvironment(
     'OPENAI_API_KEY',
     defaultValue: '',
